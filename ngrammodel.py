@@ -25,8 +25,10 @@ class NGramLanguageModeler(nn.Module):
 
 
 class CBOW(torch.nn.Module):
-    def __init__(self, vocab_size, embedding_dim, word_to_ix):
+    def __init__(self, vocab_size, embedding_dim, word_to_ix, device, send_to_device):
         super(CBOW, self).__init__()
+        self.device = device
+        self.send_to_device = send_to_device
         self.word_to_ix = word_to_ix
 
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
@@ -38,6 +40,8 @@ class CBOW(torch.nn.Module):
 
     def forward(self, inputs):
         embeds = sum(self.embeddings(inputs)).view(1, -1)
+        if(self.send_to_device):
+            embeds.to(self.device)
         out = self.linear1(embeds)
         out = self.activation_function1(out)
         out = self.linear2(out)
@@ -89,28 +93,38 @@ class Embeddings:
         print(self.losses)  # The loss decreased every iteration over the training data!
         self.serializeModel(model)
 
-    def trainEmbeddingCBOW(self, ngram, embedding_dim, vocab_size, word_to_ix, ix_to_word, mode):
+    def trainEmbeddingCBOW(self, ngram, embedding_dim, vocab_size, word_to_ix, ix_to_word, mode, send_to_device):
 
-        if(mode == "GPU" and torch.cuda.is_available()):
-            device = "cuda:0"
-        else:
-            device = "cpu"
+        device = torch.device("cuda" if torch.cuda.is_available() and mode == "GPU" else "cpu")
 
         self.loss_function = nn.NLLLoss()
-        model = CBOW(vocab_size, embedding_dim, word_to_ix)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+        model = CBOW(vocab_size, embedding_dim, word_to_ix, device, send_to_device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        if(mode == "GPU"):
+            model.cuda(device)
+            print("Learning using GPU: " + device.__str__() )
+        else:
+            model.cpu()
+            print("Learning using CPU: " + device.__str__() )
+
 
         print("Started training")
 
         for epoch in range(self.epochs):
             total_loss = 0
             for context, target in ngram:
-                context_vector = make_context_vector(context, word_to_ix)
+                if(send_to_device):
+                    context_vector = make_context_vector(context, word_to_ix).to(device)
+                else:
+                    context_vector = make_context_vector(context, word_to_ix)
                 model.zero_grad()
 
                 log_probs = model(context_vector)
 
-                loss = self.loss_function(log_probs, torch.tensor([word_to_ix[target]]))
+                if(send_to_device):
+                    loss = self.loss_function(log_probs, torch.tensor([word_to_ix[target]]).to(device))
+                else:
+                    loss = self.loss_function(log_probs, torch.tensor([word_to_ix[target]]))
 
                 loss.backward()
                 optimizer.step()

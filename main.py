@@ -48,7 +48,8 @@ if __name__ == '__main__':
 
     # Availavle GPU or CPU
     mode = "CPU"
-    train = True
+    train = False
+    send_to_device = False
 
     reader = SetReader()
     trainData = reader.readDev0Train()
@@ -73,6 +74,6 @@ if __name__ == '__main__':
     embeddings = Embeddings()
     # embeddings.trainEmbeddings(word_to_ix, ix_to_word, vocab_size, embedding_dim, context_size, ngram)
     if(train):
-        embeddings.trainEmbeddingCBOW(ngram, embedding_dim, vocab_size, word_to_ix, ix_to_word, mode)
+        embeddings.trainEmbeddingCBOW(ngram, embedding_dim, vocab_size, word_to_ix, ix_to_word, mode, send_to_device)
     else:
         embeddings.testModel(ngram, reader.readDev0Expected(), word_to_ix, ix_to_word)
