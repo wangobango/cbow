@@ -1,0 +1,9 @@
+*~
+*.swp
+*.o
+dev*/*
+train/*
+__pycache__/*
+.idea/*
+models/*
+test-A/*
